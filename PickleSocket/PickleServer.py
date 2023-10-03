@@ -34,7 +34,7 @@ class PickleServer:
         self.last_msg_recv = self.queue.Queue()
         self.last_msg_sent = self.queue.Queue()
 
-        self.next_msg_out = self.queue.Queue()
+        self.next_msg_sent = self.queue.Queue()
 
         self.manage_thread = threading.Thread(target=None, daemon=True)
         self.producer_thread = threading.Thread(target=None, daemon=True)
@@ -59,7 +59,7 @@ class PickleServer:
                    f"Connected:{self.connection_alive}\n"
         return s_status
 
-    def consumer_producer_init(self):
+    def _consumer_producer_init(self):
         """
         Consumer producer thread init
         """
@@ -78,7 +78,7 @@ class PickleServer:
         except threading.ThreadError:
             pass
 
-    def start_consumer_producer_pair(self):
+    def _start_consumer_producer_pair(self):
         """
         Checks to make sure the connection is alive.
         Starts both consumer and producer threads to handle
@@ -102,3 +102,204 @@ class PickleServer:
             except threading.ThreadError:
                 pass
 
+    def _should_reset_queue(self, to_test):
+        """
+        checks to make sure queue is smaller than max set
+        in utility class
+        :param to_test:
+        :return:
+        """
+        pass
+
+    def _queue_last_msg_recv(self, message):
+        """
+        queue message to last_msg_recv
+        :param message:
+        :return:
+        """
+        pass
+
+    def _queue_last_msg_sent(self, message):
+        """
+        queue message to last_msg_sent
+        :param message:
+        :return:
+        """
+        pass
+
+    def _queue_next_msg_sent(self, message):
+        """
+        queue message to next next_msg_sent
+        :param message:
+        :return:
+        """
+        pass
+
+    def wait_for_client(self):
+        """
+        Waits for one socket timeout
+        :return: bool on connection success
+        """
+        pass
+
+    def _client_handshake(self):
+        """
+        handles intial handshake
+        exchanges network key with client
+        sets connection_alive true
+        :return: bool on key success
+        """
+        pass
+
+    def disconnect_from_client(self):
+        """
+        sends disconnect message to client
+        waits
+        :return:
+        """
+        pass
+
+    def _client_disconnect_from_server(self):
+        """
+        handles closing the connection at the clients request
+        :return:
+        """
+        pass
+
+    def _send_object(self, message):
+        """
+        sends a single message over the socket
+        :param message:
+        :return:
+        """
+        try:
+            data_to_send = pickle.dumps(message, 0)
+            data_size = len(data_to_send)
+
+            self.logger.info(f"message send size: {data_size}")
+
+            self.current_connection.sendall(struct.pack(">L", data_size) + data_to_send)
+            self.time_since_last_msg_sent = self.util.get_current_time()
+        except socket.error:
+            self.logger.error("Socket error when sending object")
+
+    def _get_object(self):
+        """
+        gets a single message from the socket
+        :return:
+        """
+        try:
+
+            while len(self.data) < self.payload_size:
+                self.data += self.current_connection.recv(4096)
+
+            # self.logger.debug(f"Done RECV: {len(self.data)}")
+            packed_msg_size = self.data[:self.payload_size]
+
+            self.data = self.data[self.payload_size:]
+
+            msg_size = struct.unpack(">L", packed_msg_size)[0]
+
+            # self.logger.debug(f"msg size: {msg_size}")
+
+            while len(self.data) < msg_size:
+                # self.logger.debug(f"Data size: {len(self.data)}")
+                self.data += self.current_connection.recv(4096)
+
+            message_str = self.data[:msg_size]
+
+            self.data = self.data[msg_size:]
+
+            message = pickle.loads(message_str, fix_imports=True, encoding="bytes")
+
+            self.logger.debug(f"Encoded Type: {type(message)}")
+
+            self.time_since_last_msg_received = self.util.get_current_time()
+
+            if message.type == MessageType.HEART_BEAT:
+                self.got_heartbeat(message)
+                return None
+            return message
+        except socket.timeout as e:
+            self.logger.debug(f"No data on socket Error: {e}")
+        except socket.error as e:
+            self.logger.error(f"Error when getting object Error:{e}")
+        except BaseException as e:
+            self.logger.error(f"unknown error must handle Error {e}")
+
+    def queue_next_message_send(self, message):
+        """
+        adds the message to the next_message_sent_queue
+        :param message:
+        :return:
+        """
+        pass
+
+    def _send_single_message(self):
+        """
+        sends a singles message over the socket
+        :return:
+        """
+        pass
+
+    def send_all(self):
+        """
+        sends all messages in next_message_sent_queue
+        :return:
+        """
+        pass
+
+    def _send_heartbeat(self):
+        """
+        sends a heartbeat messages and updates internal times
+        :return:
+        """
+        pass
+
+    def _got_heartbeat(self, heartbeat):
+        """
+        process a received heartbeat message
+        :param heartbeat:
+        :return:
+        """
+        pass
+
+    def _heartbeat_check(self):
+        """
+        checks heartbeat and message timers
+        compares them to current time and utility timeout
+        if no heartbeat received connection is closed
+        :return:
+        """
+        pass
+
+    def _should_force_exit(self):
+        """
+        checks if exit command is timeing out
+        :return: bool
+        """
+        pass
+
+    def send_loop(self):
+        """
+        producer loop
+        sends a single message at a time
+        :return:
+        """
+        pass
+
+    def receive_loop(self):
+        """
+        consumer loop
+        processes a single message at a time
+        :return:
+        """
+        pass
+
+    def start_loop(self):
+        """
+        manager loop. Starts Producer/Consumer
+        waits for new connection
+        :return:
+        """
+        pass
