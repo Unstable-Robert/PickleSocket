@@ -8,6 +8,8 @@ import pickle
 
 from PickleUtility import SocketStatus
 from PickleUtility import Utility
+from PickleMessage import MessageType
+from PickleMessage import Message
 
 
 class PickleServer:
