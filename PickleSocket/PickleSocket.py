@@ -12,11 +12,10 @@ from PickleMessage import MessageType
 from PickleMessage import Message
 
 
-class PickleServer:
+class PickleSocket:
     """
-    Host server for clients to connect too
-    Manages receiver and sending threads
-    Server thread reconnects on failure
+    Manage a socket connection that
+    Sends python objects over socket
     """
 
     def __init__(self, name, ip, port, network_key="key"):
@@ -24,6 +23,8 @@ class PickleServer:
         self.network_status = SocketStatus.INIT
 
         self.util = Utility()
+
+        self.is_Server = None
 
         self.network_name = name
         self.network_key = network_key
@@ -45,6 +46,7 @@ class PickleServer:
 
         self.network_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.network_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.network_socket.settimeout(self.util.SOCKET_LISTEN_TIMEOUT)
 
         self.time_last_hrb_sent = None
         self.time_last_msg_sent = None
@@ -157,14 +159,28 @@ class PickleServer:
         Waits for one socket timeout
         :return: bool on connection success
         """
-        pass
+        self.is_Server = True
 
-    def _client_handshake(self):
+    def connect_to_host(self):
+        """
+        Waits for one socket timeout
+        :return: bool on connection success
+        """
+        self.is_Server = False
+
+    def _start_handshake(self):
         """
         handles initial handshake
         exchanges network key with client
         sets connection_alive true
         :return: bool on key success
+        """
+        pass
+
+    def _got_handshake_response(self):
+        """
+        loops until we get a handshake message
+        :return:
         """
         pass
 
