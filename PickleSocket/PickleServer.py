@@ -6,6 +6,9 @@ import logging
 import struct
 import pickle
 
+from PickleUtility import SocketStatus
+from PickleUtility import Utility
+
 
 class PickleServer:
     """
@@ -18,11 +21,25 @@ class PickleServer:
 
         self.network_status = SocketStatus.INIT
 
+        self.util = Utility()
+
         self.network_name = name
         self.network_key = network_key
 
         self.network_ip = ip
         self.network_port = port
+
+        logger_name = self.network_name + __name__
+
+        self.logger = logging.getLogger(logger_name)
+
+        if not self.logger.hasHandlers():
+            console_handler, file_handler = self.util.set_up_logger_outputs(logger_name + ".log")
+
+            self.logger.addHandler(console_handler)
+            self.logger.addHandler(file_handler)
+
+        self.logger.setLevel(self.util.get_log_level())
 
         self.network_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.network_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -31,10 +48,10 @@ class PickleServer:
         self.time_last_msg_sent = None
         self.time_last_msg_recv = None
 
-        self.last_msg_recv = self.queue.Queue()
-        self.last_msg_sent = self.queue.Queue()
+        self.last_msg_recv = queue.Queue()
+        self.last_msg_sent = queue.Queue()
 
-        self.next_msg_sent = self.queue.Queue()
+        self.next_msg_sent = queue.Queue()
 
         self.manage_thread = threading.Thread(target=None, daemon=True)
         self.producer_thread = threading.Thread(target=None, daemon=True)
@@ -47,15 +64,13 @@ class PickleServer:
         self.recv_data = b""
         self.payload_size = struct.calcsize(">L")
 
-        logger_name = self.network_name + __name__
-
     def connection_status(self):
         """
         Summary and current status of connection.
         :return: Formatted string with ip, port, connected, current state
         """
         s_status = f"Socket - {self.network_ip}:{self.network_port}\n" \
-                   f"Status: {self.server_status}\n" \
+                   f"Status: {self.network_status}\n" \
                    f"Connected:{self.connection_alive}\n"
         return s_status
 
@@ -95,7 +110,7 @@ class PickleServer:
                 pass
         except threading.ThreadError:
             try:
-                self.consumer_producer_init()
+                self._consumer_producer_init()
                 self.network_status = SocketStatus.CONNECTED
                 self.producer_thread.start()
                 self.consumer_thread.start()
@@ -144,7 +159,7 @@ class PickleServer:
 
     def _client_handshake(self):
         """
-        handles intial handshake
+        handles initial handshake
         exchanges network key with client
         sets connection_alive true
         :return: bool on key success
@@ -178,7 +193,7 @@ class PickleServer:
 
             self.logger.info(f"message send size: {data_size}")
 
-            self.current_connection.sendall(struct.pack(">L", data_size) + data_to_send)
+            self.network_socket.sendall(struct.pack(">L", data_size) + data_to_send)
             self.time_since_last_msg_sent = self.util.get_current_time()
         except socket.error:
             self.logger.error("Socket error when sending object")
@@ -190,13 +205,13 @@ class PickleServer:
         """
         try:
 
-            while len(self.data) < self.payload_size:
-                self.data += self.current_connection.recv(4096)
+            while len(self.recv_data) < self.payload_size:
+                self.recv_data += self.network_socket.recv(4096)
 
             # self.logger.debug(f"Done RECV: {len(self.data)}")
-            packed_msg_size = self.data[:self.payload_size]
+            packed_msg_size = self.recv_data[:self.payload_size]
 
-            self.data = self.data[self.payload_size:]
+            self.data = self.recv_data[self.payload_size:]
 
             msg_size = struct.unpack(">L", packed_msg_size)[0]
 
@@ -204,7 +219,7 @@ class PickleServer:
 
             while len(self.data) < msg_size:
                 # self.logger.debug(f"Data size: {len(self.data)}")
-                self.data += self.current_connection.recv(4096)
+                self.data += self.network_socket.recv(4096)
 
             message_str = self.data[:msg_size]
 
@@ -217,7 +232,7 @@ class PickleServer:
             self.time_since_last_msg_received = self.util.get_current_time()
 
             if message.type == MessageType.HEART_BEAT:
-                self.got_heartbeat(message)
+                self._got_heartbeat(message)
                 return None
             return message
         except socket.timeout as e:
