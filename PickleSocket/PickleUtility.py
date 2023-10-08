@@ -10,12 +10,13 @@ from logging.handlers import RotatingFileHandler
 
 
 class SocketStatus(Enum):
+    ERROR = -1
     INIT = 0
     WAITING_FOR_CONNECTION = 1
-    CONNECTED = 2
-    PROCESSING_MESSAGE = 3
-    CONNECTION_DEAD = 4
-    ERROR = 5
+    WAITING_FOR_HOST = 2
+    CONNECTED = 3
+    PROCESSING_MESSAGE = 4
+    CONNECTION_DEAD = 5
 
 
 class Utility:
