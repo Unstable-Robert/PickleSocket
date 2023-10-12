@@ -51,9 +51,12 @@ class PickleSocket:
         self.network_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.network_socket.settimeout(self.util.SOCKET_LISTEN_TIMEOUT)
 
+        self.time_last_hrb_recv = None
         self.time_last_hrb_sent = None
-        self.time_last_msg_sent = None
+
         self.time_last_msg_recv = None
+        self.time_last_msg_sent = None
+
 
         self.time_exit_triggered = None
 
@@ -63,9 +66,9 @@ class PickleSocket:
 
         self._message_queue_init()
 
-        self.manage_thread = threading.Thread(target=None, daemon=True)
-        self.producer_thread = threading.Thread(target=None, daemon=True)
-        self.consumer_thread = threading.Thread(target=None, daemon=True)
+        self.manage_thread = threading.Thread(target=self.start_loop, daemon=True)
+        self.producer_thread = threading.Thread(target=self.send_loop, daemon=True)
+        self.consumer_thread = threading.Thread(target=self.receive_loop, daemon=True)
 
         self.connection_alive = False
         self.manage_alive = True
@@ -110,12 +113,13 @@ class PickleSocket:
         self.time_since_last_msg_sent = self.util.get_current_time()
         self.time_since_last_msg_received = self.util.get_current_time()
 
-    def start_server(self):
+    def start_manager(self, is_server=False):
         """
         Start the manage thread to wait for a connection
         """
         try:
             if not self.manage_thread.isAlive():
+                self.is_Server = is_server
                 self.manage_thread.start()
             else:
                 pass
@@ -194,14 +198,23 @@ class PickleSocket:
 
         self.next_msg_sent.put(message)
 
-    def wait_for_client(self):
+    def reconnect(self):
+        """
+        tries to reconnect
+        :return:
+        """
+        if self.is_Server:
+            self._wait_for_client()
+        else:
+            self._connect_to_host()
+
+    def _wait_for_client(self):
         """
         Waits for one socket timeout
         :return: bool on connection success
         """
         try:
             if self.network_status <= SocketStatus.INIT:
-                self.is_Server = True
                 self.network_socket.bind((self.network_ip, self.network_port))
 
             self._message_queue_init()
@@ -220,7 +233,7 @@ class PickleSocket:
             time.sleep(self.util.SERVER_WAIT_FOR_CONNECTION_DELAY)
         return False
 
-    def connect_to_host(self):
+    def _connect_to_host(self):
         """
         Waits for one socket timeout
         :return: bool on connection success
@@ -230,7 +243,6 @@ class PickleSocket:
             self.time_exit_triggered = None
             self.logger.info(f"Connecting to {self.network_ip}:{self.network_port}")
             self.network_socket.connect((self.network_ip, self.network_port))
-            self.is_Server = False
             return self._send_handshake_message()
         except socket.error:
             self.logger.error(f"Failed during socket connection [can't connect to host]")
@@ -450,7 +462,16 @@ class PickleSocket:
         sends a heartbeat messages and updates internal times
         :return:
         """
-        pass
+        try:
+            new_heartbeat = Message(MessageType(MessageType.HEART_BEAT), str(self.util.get_current_time()))
+            self.queue_next_message_send(new_heartbeat)
+            self.logger.debug("Heartbeat added to queue....")
+            return True
+        except ValueError:
+            self.logger.error("Value error when sending heartbeat")
+        except socket.error:
+            self.logger.error("Failed to send heartbeat socket")
+        return False
 
     def _got_heartbeat(self, heartbeat):
         """
@@ -458,7 +479,14 @@ class PickleSocket:
         :param heartbeat:
         :return:
         """
-        pass
+        if self.is_Server:
+            self.time_last_hrb_recv = self.util.get_current_time()
+            self.logger.debug("Got heartbeat..updated time")
+            return True
+        else:
+            self._send_heartbeat()
+            self.time_last_hrb_sent = self.util.get_current_time()
+            self.logger.debug("Got heartbeat..updated time")
 
     def _heartbeat_check(self):
         """
@@ -467,7 +495,28 @@ class PickleSocket:
         if no heartbeat received connection is closed
         :return:
         """
-        pass
+        try:
+            if (self.util.get_current_time() - self.time_since_last_heartbeat_sent).total_seconds() > \
+                    self.util.HEARTBEAT_DELAY * 3:
+                if (
+                        self.util.get_current_time() - self.time_since_last_msg_received).total_seconds() > \
+                        self.util.HEARTBEAT_OVERRIDE * 3:
+                    self.logger.error("failed to get heartbeat in 3 tries..closing connection")
+                    self.send_disconnect_message()
+                return False
+            elif (self.util.get_current_time() - self.time_since_last_heartbeat_sent).total_seconds() > \
+                    self.util.HEARTBEAT_DELAY or \
+                    (self.util.get_current_time() - self.time_since_last_msg_received).total_seconds() > \
+                    self.util.HEARTBEAT_OVERRIDE or \
+                    (self.util.get_current_time() - self.time_since_last_msg_sent).total_seconds() > \
+                    self.util.HEARTBEAT_OVERRIDE:
+                self.logger.debug("Should send heartbeat....")
+                self._send_heartbeat()
+                # ToDo add fix so a million heartbeats arent added when connection is lost
+                return True
+        except socket.error:
+            self.logger.error("Socket error in heartbeat check")
+        return False
 
     def _should_force_exit(self):
         """
@@ -519,4 +568,28 @@ class PickleSocket:
         waits for new connection
         :return:
         """
-        pass
+        while self.manage_alive:
+            self.network_status = SocketStatus.WAITING_FOR_CONNECTION
+            # Waiting for connection stage
+            if not self.connection_alive:
+                self.network_status = SocketStatus.WAITING_FOR_CONNECTION
+                self.logger.debug("server thread alive")
+                if self.is_Server:
+                    got_connection = self._wait_for_client()
+                else:
+                    got_connection = self._connect_to_host()
+
+                if got_connection:
+                    if self._proc_handshake_massage():
+                        self.connection_alive = True
+                        self._start_consumer_producer_pair()
+                    else:
+                        self.logger.error("Connection handshake failed")
+                else:
+                    self.logger.debug("resting")
+                    time.sleep(self.util.SERVER_WAIT_FOR_CONNECTION_DELAY)
+            else:
+                if self.connection_alive:
+                    if not self._heartbeat_check():
+                        self.logger.debug("waiting to send heartbeat")
+                time.sleep(self.util.SERVER_WAIT_FOR_CONNECTION_DELAY)
