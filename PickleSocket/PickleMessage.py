@@ -1,6 +1,7 @@
 from enum import Enum
 import logging
-from PickleUtility import Utility
+
+from PickleSocket import Utility
 
 
 class MessageType(Enum):

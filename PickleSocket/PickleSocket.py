@@ -6,10 +6,7 @@ import logging
 import struct
 import pickle
 
-from PickleUtility import SocketStatus
-from PickleUtility import Utility
-from PickleMessage import MessageType
-from PickleMessage import Message
+from PickleSocket import SocketStatus, Utility, Message, MessageType
 
 
 class PickleSocket:
@@ -45,7 +42,7 @@ class PickleSocket:
             self.logger.addHandler(console_handler)
             self.logger.addHandler(file_handler)
 
-        self.logger.setLevel(self.util.get_log_level())
+        self.logger.setLevel(self.util.get_log_level)
 
         self.network_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.network_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -214,7 +211,7 @@ class PickleSocket:
         :return: bool on connection success
         """
         try:
-            if self.network_status <= SocketStatus.INIT:
+            if self.network_status.value <= SocketStatus.INIT.value:
                 self.network_socket.bind((self.network_ip, self.network_port))
 
             self._message_queue_init()
