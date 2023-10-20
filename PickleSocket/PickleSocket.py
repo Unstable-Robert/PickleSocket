@@ -54,7 +54,6 @@ class PickleSocket:
         self.time_last_msg_recv = None
         self.time_last_msg_sent = None
 
-
         self.time_exit_triggered = None
 
         self.last_msg_recv = None
@@ -115,7 +114,7 @@ class PickleSocket:
         Start the manage thread to wait for a connection
         """
         try:
-            if not self.manage_thread.isAlive():
+            if not self.manage_thread.is_alive():
                 self.is_Server = is_server
                 self.manage_thread.start()
             else:
