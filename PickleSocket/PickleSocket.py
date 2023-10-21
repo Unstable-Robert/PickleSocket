@@ -46,7 +46,6 @@ class PickleSocket:
 
         self.network_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.network_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.network_socket.settimeout(self.util.SOCKET_LISTEN_TIMEOUT)
 
         self.time_last_hrb_recv = None
         self.time_last_hrb_sent = None
@@ -80,7 +79,8 @@ class PickleSocket:
         """
         s_status = f"Socket - {self.network_ip}:{self.network_port}\n" \
                    f"Status: {self.network_status}\n" \
-                   f"Connected:{self.connection_alive}\n"
+                   f"Connected:{self.connection_alive}\n" \
+                   f"Server:{self.is_Server}\n"
         return s_status
 
     def _consumer_producer_init(self):
@@ -571,8 +571,11 @@ class PickleSocket:
                 self.network_status = SocketStatus.WAITING_FOR_CONNECTION
                 self.logger.debug("server thread alive")
                 if self.is_Server:
+                    self.logger.info("Waiting for Connection.....")
                     got_connection = self._wait_for_client()
                 else:
+                    self.logger.info("Connecting to server.....")
+                    self.network_socket.settimeout(self.util.SOCKET_LISTEN_TIMEOUT)
                     got_connection = self._connect_to_host()
 
                 if got_connection:
