@@ -81,4 +81,4 @@ class Message(object):
             self.logger.addHandler(console_handler)
             self.logger.addHandler(file_handler)
 
-        self.logger.setLevel(self.util.get_log_level())
+        self.logger.setLevel(self.util.get_log_level)

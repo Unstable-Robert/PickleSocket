@@ -47,7 +47,7 @@ class Utility:
 
     @property
     def get_log_level(self):
-        return logging.DEBUG
+        return logging.INFO
 
     @property
     def get_default_time(self):
@@ -66,7 +66,7 @@ class Utility:
     def set_up_logger_outputs(self, logger_filename):
         console_handler = logging.StreamHandler()
         file_handler = RotatingFileHandler(
-            logger_filename, mode='a', maxBytes=(5 * 1024 * 1024),
+            logger_filename, mode='w', maxBytes=(5 * 1024 * 1024),
             encoding=None, backupCount=2, delay=False, errors=None
         )
 
@@ -74,9 +74,11 @@ class Utility:
         file_handler.setLevel(self.get_log_level)
 
         console_format = logging. \
-            Formatter("[%(filename)s:%(asctime)s - %(funcName)20s() %(threadName)s]:[%(levelname)s-%(message)s]")
+            Formatter("[%(filename)s:%(asctime)s - %(funcName)20s() %(threadName)s]:"
+                      "[%(levelname)s-%(lineno)d-%(message)s]")
         file_format = logging. \
-            Formatter("[%(filename)s:%(asctime)s - %(funcName)20s() %(threadName)s]:[%(levelname)s-%(message)s]")
+            Formatter("[%(filename)s:%(asctime)s - %(funcName)20s() %(threadName)s]:"
+                      "[%(levelname)s-%(lineno)d-%(message)s]")
 
         console_handler.setFormatter(console_format)
         file_handler.setFormatter(file_format)
