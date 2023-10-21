@@ -211,6 +211,8 @@ class PickleSocket:
         """
         try:
             if self.network_status.value <= SocketStatus.INIT.value:
+                self.logger.info(f"Network binding to port {self.network_port}")
+                self.network_status = SocketStatus.WAITING_FOR_CONNECTION
                 self.network_socket.bind((self.network_ip, self.network_port))
 
             self._message_queue_init()
@@ -220,12 +222,14 @@ class PickleSocket:
 
             self.network_socket.listen(self.util.NUMBER_ALLOWED_CONNECTIONS)
             self.network_client, self.current_client_address = self.network_socket.accept()
-            self.network_socket.settimeout(self.util.SOCKET_CONNECTED_TIMEOUT)
+            self.network_socket.settimeout(self.util.SOCKET_LISTEN_TIMEOUT)
             self.logger.info(f"Got connection from {self.current_client_address}")
             self._message_timers_init_current_time()
+            self.logger.info("Waiting for key message to send....")
+            time.sleep(1)
             return True
-        except socket.error:
-            self.logger.error(f"Socket Error - network_status:{self.network_status.name}")
+        except socket.error as e:
+            self.logger.error(f"Waiting for Client [{e}]")
             time.sleep(self.util.SERVER_WAIT_FOR_CONNECTION_DELAY)
         return False
 
@@ -236,12 +240,14 @@ class PickleSocket:
         """
         try:
             self._message_queue_init()
+            self.network_status = SocketStatus.WAITING_FOR_HOST
             self.time_exit_triggered = None
             self.logger.info(f"Connecting to {self.network_ip}:{self.network_port}")
+            self.network_socket.settimeout(self.util.SOCKET_CONNECTED_TIMEOUT)
             self.network_socket.connect((self.network_ip, self.network_port))
             return self._send_handshake_message()
-        except socket.error:
-            self.logger.error(f"Failed during socket connection [can't connect to host]")
+        except socket.error as e:
+            self.logger.error(f"Failed during socket connection [{e}]")
         return False
 
     def _send_handshake_message(self):
@@ -253,10 +259,13 @@ class PickleSocket:
         if not self.is_Server:
             key_message = Message(MessageType(MessageType.INIT.value), self.network_key)
             self.logger.debug(f"Key length: {key_message.size}")
-            self._send_object(key_message)
+            did_send = self._send_object(key_message)
+            if did_send:
+                self.logger.info("Key Message sent")
+            else:
+                self.logger.error("Key value was not sent")
 
             handshake_count = 0
-
             # ToDo set up way to wait for response
             while not self._proc_handshake_massage():
                 if handshake_count > self.util.MAX_HANDSHAKE_COUNT:
@@ -265,6 +274,8 @@ class PickleSocket:
                 else:
                     handshake_count += 1
             self.should_send_message = True
+        else:
+            self.logger.error("Send handshake called on server")
 
     def _proc_handshake_massage(self):
         """
@@ -343,8 +354,11 @@ class PickleSocket:
 
             self.network_socket.sendall(struct.pack(">L", data_size) + data_to_send)
             self.time_since_last_msg_sent = self.util.get_current_time()
+            return True
         except socket.error:
             self.logger.error("Socket error when sending object")
+
+        return False
 
     def _get_object(self):
         """
@@ -565,17 +579,16 @@ class PickleSocket:
         :return:
         """
         while self.manage_alive:
-            self.network_status = SocketStatus.WAITING_FOR_CONNECTION
+            # self.network_status = SocketStatus.WAITING_FOR_CONNECTION
             # Waiting for connection stage
             if not self.connection_alive:
-                self.network_status = SocketStatus.WAITING_FOR_CONNECTION
+                # self.network_status = SocketStatus.WAITING_FOR_CONNECTION
                 self.logger.debug("server thread alive")
                 if self.is_Server:
                     self.logger.info("Waiting for Connection.....")
                     got_connection = self._wait_for_client()
                 else:
                     self.logger.info("Connecting to server.....")
-                    self.network_socket.settimeout(self.util.SOCKET_LISTEN_TIMEOUT)
                     got_connection = self._connect_to_host()
 
                 if got_connection:

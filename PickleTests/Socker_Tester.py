@@ -1,11 +1,10 @@
 import PickleSocket
 import time
 
-pickle_server = PickleSocket.PickleSocket("TestServer", "192.168.1.110", 65432)
-pickle_client = PickleSocket.PickleSocket("TestClient", "localhost", 65432)
+pickle_server = PickleSocket.PickleSocket("TestServer", "127.0.0.1", 65432)
+pickle_client = PickleSocket.PickleSocket("TestClient", "127.0.0.1", 65432)
 
 pickle_server.start_manager(is_server=True)
-time.sleep(2)
 pickle_client.start_manager()
 
 for x in range(20):
