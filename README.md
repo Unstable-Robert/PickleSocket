@@ -10,7 +10,7 @@ PickleSocket is an open-source Python library that simplifies sending Python obj
   - [Starting the PickleSocket](#starting-the-picklesocket)
   - [Sending Messages](#sending-messages)
   - [Receiving Messages](#receiving-messages)
-  - [Ending Connections](#Ending Connections)
+  - [Ending Connections](#Ending-Connections)
 - [Message Types](#message-types)
 - [Configuration](#configuration)
 - [Contributing](#contributing)
