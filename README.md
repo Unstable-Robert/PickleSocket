@@ -1,4 +1,4 @@
-##PickleSocket - Python Socket Library for Sending Python Objects
+## PickleSocket - Python Socket Library for Sending Python Objects
 
 PickleSocket is an open-source Python library that simplifies sending Python objects over socket connections. It allows you to create and manage socket connections, send and receive Python objects, and handle various socket-related tasks. This library is designed for use in both client-server and peer-to-peer scenarios.
 
