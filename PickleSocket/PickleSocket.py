@@ -16,7 +16,14 @@ class PickleSocket:
     """
 
     def __init__(self, name, ip, port, network_key="key"):
+        """
+        Initialize the class with the given parameters.
 
+        :param name: The name of the network.
+        :param ip: The IP address of the network.
+        :param port: The port number of the network.
+        :param network_key: The network key (default: "key").
+        """
         self.network_status = SocketStatus.INIT
 
         self.util = Utility()
@@ -76,8 +83,13 @@ class PickleSocket:
 
     def connection_status(self):
         """
-        Summary and current status of connection.
-        :return: Formatted string with ip, port, connected, current state
+        Returns the connection status details of the socket.
+
+        :return: Connection status details in the following format:
+            Socket - {network_ip}:{network_port}
+            Status: {network_status}
+            Connected: {connection_alive}
+            Server: {is_Server}
         """
         s_status = f"Socket - {self.network_ip}:{self.network_port}\n" \
                    f"Status: {self.network_status}\n" \
@@ -87,15 +99,20 @@ class PickleSocket:
 
     def _consumer_producer_init(self):
         """
-        Consumer producer thread init
+        Initialize the consumer and producer threads.
+
+        :return: None
+
+        :rtype: None
         """
         self.producer_thread = threading.Thread(target=None, daemon=True)
         self.consumer_thread = threading.Thread(target=None, daemon=True)
 
     def _message_queue_init(self):
         """
-        sets up message queues
-        :return:
+        Initializes the message queues for last received message, last sent message, and next sent message.
+
+        :return: None
         """
         self.last_msg_recv = queue.Queue()
         self.last_msg_sent = queue.Queue()
@@ -104,8 +121,9 @@ class PickleSocket:
 
     def _message_timers_init_current_time(self):
         """
-        sets up message timers to current time
-        :return:
+        Initializes the current time for various message timers.
+
+        :return: None
         """
         self.time_last_hrb_recv = self.util.get_current_time()
         self.time_last_hrb_sent = self.util.get_current_time()
@@ -117,7 +135,11 @@ class PickleSocket:
 
     def start_manager(self, is_server=False):
         """
-        Start the manage thread to wait for a connection
+        Starts the manager thread.
+
+        :param is_server: a boolean indicating if the manager is running as a server
+        :type is_server: bool
+        :return: None
         """
         try:
             if not self.manage_thread.is_alive():
@@ -132,10 +154,9 @@ class PickleSocket:
 
     def _start_consumer_producer_pair(self):
         """
-        Checks to make sure the connection is alive.
-        Starts both consumer and producer threads to handle
-        sending and receiving message
-        :return:
+        Start the consumer and producer threads.
+
+        :return: None
         """
 
         try:
@@ -156,10 +177,8 @@ class PickleSocket:
 
     def _should_reset_queue(self, to_test):
         """
-        checks to make sure queue is smaller than max set
-        in utility class
-        :param to_test:
-        :return:
+        :param to_test: The queue to be tested for reset.
+        :return: True if the queue is not empty and its size exceeds the maximum allowed size. Otherwise, False.
         """
         if not to_test.empty():
             if to_test.qsize() > self.util.MESSAGE_QUEUE_MAX_SIZE:
@@ -168,9 +187,10 @@ class PickleSocket:
 
     def _queue_last_msg_recv(self, message):
         """
-        queue message to last_msg_recv
-        :param message:
-        :return:
+        Queue the last received message.
+
+        :param message: The message to be queued.
+        :return: None
         """
         if self._should_reset_queue(self.last_msg_recv):
             self.logger.debug("Queue too big check it out")
@@ -180,9 +200,10 @@ class PickleSocket:
 
     def _queue_last_msg_sent(self, message):
         """
-        queue message to last_msg_sent
-        :param message:
-        :return:
+        Queue the last message sent.
+
+        :param message: The message to be queued.
+        :return: None
         """
         if self._should_reset_queue(self.last_msg_sent):
             self.logger.debug("Queue too big check it out")
@@ -192,9 +213,13 @@ class PickleSocket:
 
     def _queue_next_msg_sent(self, message):
         """
-        queue message to next next_msg_sent
-        :param message:
-        :return:
+        Queue the next message to be sent.
+
+        :param message: The message to be added to the queue.
+        :type message: Any
+
+        :return: None
+        :rtype: NoneType
         """
         if self._should_reset_queue(self.next_msg_sent):
             self.logger.debug("Queue too big check it out")
@@ -204,8 +229,9 @@ class PickleSocket:
 
     def reconnect(self):
         """
-        tries to reconnect
-        :return:
+        Connects to the server if the current instance is the server, otherwise connects to the host.
+
+        :return: None
         """
         if self.is_Server:
             self._wait_for_client()
@@ -214,8 +240,9 @@ class PickleSocket:
 
     def _wait_for_client(self):
         """
-        Waits for one socket timeout
-        :return: bool on connection success
+        Waits for a client connection and handles the handshake message.
+
+        :return: True if successful handshake, False otherwise.
         """
         try:
             if self.network_status.value <= SocketStatus.INIT.value:
@@ -243,8 +270,9 @@ class PickleSocket:
 
     def _connect_to_host(self):
         """
-        Waits for one socket timeout
-        :return: bool on connection success
+        Connects to the specified host with the given IP and port.
+
+        :return: True if the connection is successful and the handshake message is sent successfully, False otherwise.
         """
         try:
             self._message_queue_init()
@@ -261,9 +289,9 @@ class PickleSocket:
 
     def _send_handshake_message(self):
         """
-        client sends initial handshake message
-        sends message with network key
-        :return:
+        Sends a handshake message.
+
+        :return: True if the handshake was successful, False otherwise
         """
         if not self.is_Server:
             key_message = Message(MessageType(MessageType.INIT.value), self.network_key)
@@ -290,8 +318,10 @@ class PickleSocket:
 
     def _proc_handshake_massage(self):
         """
-        server waits for handshake message
-        sent on successfully connect by client
+        Processes the handshake message in the communication protocol.
+
+        :return: True if the handshake is successful, False otherwise.
+        :rtype: bool
         """
         try:
             self.logger.debug(f"Waiting for handshake message - is_server: {self.is_Server}")
@@ -318,9 +348,9 @@ class PickleSocket:
 
     def send_disconnect_message(self):
         """
-        sends disconnect message to client
-        waits
-        :return:
+        Sends a disconnect message to the connected client.
+
+        :return: False if the disconnect message fails to send or if there is no active connection.
         """
         try:
             if self._should_force_exit():
@@ -341,8 +371,20 @@ class PickleSocket:
 
     def _proc_disconnect_message(self, message):
         """
-        handles closing the connection at the clients request
-        :return:
+        :param message: The disconnect message received from a remote connection.
+        :return: None
+
+        This method is responsible for processing a disconnect message received from a remote connection.
+        It performs the following actions:
+        - Creates a close message to indicate the intention to close the connection.
+        - Enqueues the close message to be sent.
+        - Sends all pending messages in the queue.
+        - Sets the connection status to 'not alive'.
+        - Resets the time exit triggered flag.
+        - Logs an information message indicating that a close connection command was received.
+
+        Note:
+        - This method does not handle cleaning up remote closing connections. (ToDo)
         """
         close_message = Message(MessageType(MessageType.EXIT), self.network_key)
         self.queue_next_message_send(close_message)
@@ -354,9 +396,10 @@ class PickleSocket:
 
     def _send_object(self, message):
         """
-        sends a single message over the socket
-        :param message:
-        :return:
+        Send an object over the network.
+
+        :param message: The message object to send.
+        :return: True if the object was successfully sent, False otherwise.
         """
         try:
             data_to_send = pickle.dumps(message, 0)
@@ -377,8 +420,9 @@ class PickleSocket:
 
     def _get_object(self):
         """
-        gets a single message from the socket
-        :return:
+        Retrieves an object from the network socket or client.
+
+        :return: The received object or None if it's a heart beat message.
         """
         try:
 
@@ -427,9 +471,8 @@ class PickleSocket:
 
     def queue_next_message_send(self, message):
         """
-        adds the message to the next_message_sent_queue
-        :param message:
-        :return:
+        :param message: The message to be sent. It can be either a string or an instance of the Message class.
+        :return: True if the message was successfully sent, False otherwise.
         """
         try:
             if isinstance(message, str):
@@ -454,8 +497,9 @@ class PickleSocket:
 
     def _send_single_message(self):
         """
-        sends a singles message over the socket
-        :return:
+        Send a single message from the queue.
+
+        :return: None
         """
         try:
             if not self.next_msg_sent.empty():
@@ -471,8 +515,9 @@ class PickleSocket:
 
     def send_all(self):
         """
-        sends all messages in next_message_sent_queue
-        :return:
+        Sends all messages in the next_msg_sent queue.
+
+        :return: True if all messages were sent successfully, False otherwise.
         """
         try:
             if not self.next_msg_sent.empty():
@@ -490,8 +535,9 @@ class PickleSocket:
 
     def _send_heartbeat(self):
         """
-        sends a heartbeat messages and updates internal times
-        :return:
+        Sends a heartbeat message.
+
+        :return: True if the heartbeat was successfully sent, False otherwise.
         """
         try:
             new_heartbeat = Message(MessageType(MessageType.HEART_BEAT), str(self.util.get_current_time()))
@@ -507,9 +553,10 @@ class PickleSocket:
 
     def _got_heartbeat(self, heartbeat):
         """
-        process a received heartbeat message
-        :param heartbeat:
-        :return:
+        Handles the received heartbeat.
+
+        :param heartbeat: The received heartbeat.
+        :return: Returns True.
         """
         self.time_last_hrb_recv = self.util.get_current_time()
         self.logger.debug(f"Got heartbeat..updated time is_server:{self.is_Server}")
@@ -520,10 +567,9 @@ class PickleSocket:
 
     def _heartbeat_check(self):
         """
-        checks heartbeat and message timers
-        compares them to current time and utility timeout
-        if no heartbeat received connection is closed
-        :return:
+        Check the status of the heartbeat.
+
+        :return: True if a heartbeat should be sent, False otherwise.
         """
         try:
             if (self.util.get_current_time() - self.time_last_hrb_sent).total_seconds() > \
@@ -551,8 +597,9 @@ class PickleSocket:
 
     def _should_force_exit(self):
         """
-        checks if exit command is timeing out
-        :return: bool
+        Determines whether the system should force an exit based on the conditions.
+
+        :return: True if the system should force an exit, False otherwise.
         """
         if self.time_exit_triggered:
             if (self.util.get_current_time() - self.time_exit_triggered).total_seconds() > self.util.HEARTBEAT_DELAY * 4:
@@ -562,9 +609,9 @@ class PickleSocket:
 
     def send_loop(self):
         """
-        producer loop
-        sends a single message at a time
-        :return:
+        Sends messages in a loop until the connection is no longer alive.
+
+        :return: None
         """
         while self.connection_alive:
             self._send_single_message()
@@ -573,9 +620,10 @@ class PickleSocket:
 
     def receive_loop(self):
         """
-        consumer loop
-        processes a single message at a time
-        :return:
+        Run a loop to receive messages until the connection is no longer alive.
+        Each received message is processed accordingly.
+
+        :return: None
         """
         while self.connection_alive:
             message = self._get_object()
@@ -595,9 +643,9 @@ class PickleSocket:
 
     def start_loop(self):
         """
-        manager loop. Starts Producer/Consumer
-        waits for new connection
-        :return:
+        Starts the loop for managing the connection status.
+
+        :return: None
         """
         while self.manage_alive:
             # self.network_status = SocketStatus.WAITING_FOR_CONNECTION
