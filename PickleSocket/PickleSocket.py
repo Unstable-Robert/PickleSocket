@@ -6,7 +6,7 @@ import logging
 import struct
 import pickle
 
-from PickleSocket import SocketStatus, Utility, Message, MessageType
+from PickleSocket import SocketStatus, Utility, Message, MessageType, Protocol
 
 
 class PickleSocket:
@@ -15,7 +15,7 @@ class PickleSocket:
     Sends python objects over socket
     """
 
-    def __init__(self, name, ip, port, network_key="key"):
+    def __init__(self, name, ip, port, protocol=Protocol.TCP, network_key="key"):
         """
         Initialize the class with the given parameters.
 
@@ -24,6 +24,7 @@ class PickleSocket:
         :param port: The port number of the network.
         :param network_key: The network key (default: "key").
         """
+        self.network_protocol = protocol
         self.network_status = SocketStatus.INIT
 
         self.util = Utility()
@@ -51,7 +52,7 @@ class PickleSocket:
 
         self.logger.setLevel(self.util.get_log_level)
 
-        self.network_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.network_socket = socket.socket(socket.AF_INET, self.network_protocol.value)
         self.network_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         self.network_client = None

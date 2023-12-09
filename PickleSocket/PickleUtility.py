@@ -1,5 +1,6 @@
 import time
 from enum import Enum
+import socket
 from datetime import datetime, timedelta
 import logging
 from logging.handlers import RotatingFileHandler
@@ -17,6 +18,11 @@ class SocketStatus(Enum):
     CONNECTED = 3
     PROCESSING_MESSAGE = 4
     CONNECTION_DEAD = 5
+
+
+class Protocol(Enum):
+    TCP = socket.SOCK_STREAM
+    UDP = socket.SOCK_DGRAM
 
 
 class Utility:
