@@ -571,25 +571,22 @@ class PickleSocket:
 
         :return: True if a heartbeat should be sent, False otherwise.
         """
+        current_time = self.util.get_current_time()
+        time_since_last_heartbeat = (current_time - self.time_last_hrb_sent).total_seconds()
+        time_since_last_msg_received = (current_time - self.time_last_msg_recv).total_seconds()
+        time_since_last_msg_sent = (current_time - self.time_last_msg_sent).total_seconds()
+
         try:
-            if (self.util.get_current_time() - self.time_last_hrb_sent).total_seconds() > \
-                    self.util.HEARTBEAT_DELAY * 3:
-                if (
-                        self.util.get_current_time() - self.time_last_msg_recv).total_seconds() > \
-                        self.util.HEARTBEAT_OVERRIDE * 3:
+            if time_since_last_heartbeat > self.util.HEARTBEAT_DELAY * 3:
+                if time_since_last_msg_received > self.util.HEARTBEAT_OVERRIDE * 3:
                     self.logger.error("failed to get heartbeat in 3 tries..closing connection")
                     self.send_disconnect_message()
                 return False
-            elif (self.util.get_current_time() - self.time_last_hrb_sent).total_seconds() > \
-                    self.util.HEARTBEAT_DELAY or \
-                    (self.util.get_current_time() - self.time_last_msg_recv).total_seconds() > \
-                    self.util.HEARTBEAT_OVERRIDE or \
-                    (self.util.get_current_time() - self.time_last_msg_sent).total_seconds() > \
-                    self.util.HEARTBEAT_OVERRIDE:
+            elif time_since_last_heartbeat > self.util.HEARTBEAT_DELAY or \
+                    time_since_last_msg_received > self.util.HEARTBEAT_OVERRIDE or \
+                    time_since_last_msg_sent > self.util.HEARTBEAT_OVERRIDE:
                 self.logger.debug("Should send heartbeat....")
-
                 self._send_heartbeat()
-                # ToDo add fix so a million heartbeats arent added when connection is lost
                 return True
         except socket.error:
             self.logger.error("Socket error in heartbeat check")
